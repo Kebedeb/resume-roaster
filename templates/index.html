@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Roaster 🔥</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- ===================== SETUP PANEL ===================== -->
+    <div id="setup-panel">
+        <header>
+            <h1>🔥 Resume Roaster</h1>
+            <p>Upload your resume and get brutally honest, celebrity-voiced feedback</p>
+        </header>
+
+        <form id="roast-form">
+
+            <section>
+                <h2>Choose Your Roaster</h2>
+                <div class="celebrity-grid">
+                    <label class="celeb-card selected">
+                        <input type="radio" name="celebrity" value="gordon" checked>
+                        <span class="celeb-emoji">👨‍🍳</span>
+                        <span class="celeb-name">Gordon Ramsay</span>
+                        <span class="celeb-desc">Brutal chef energy</span>
+                    </label>
+                    <label class="celeb-card">
+                        <input type="radio" name="celebrity" value="simon">
+                        <span class="celeb-emoji">🎤</span>
+                        <span class="celeb-name">Simon Cowell</span>
+                        <span class="celeb-desc">Blunt talent judge</span>
+                    </label>
+                    <label class="celeb-card">
+                        <input type="radio" name="celebrity" value="deadpool">
+                        <span class="celeb-emoji">🗡️</span>
+                        <span class="celeb-name">Deadpool</span>
+                        <span class="celeb-desc">Fourth-wall breaker</span>
+                    </label>
+                    <label class="celeb-card">
+                        <input type="radio" name="celebrity" value="snoop">
+                        <span class="celeb-emoji">🎵</span>
+                        <span class="celeb-name">Snoop Dogg</span>
+                        <span class="celeb-desc">Laid-back but real</span>
+                    </label>
+                    <label class="celeb-card">
+                        <input type="radio" name="celebrity" value="anna">
+                        <span class="celeb-emoji">👑</span>
+                        <span class="celeb-name">Anna Wintour</span>
+                        <span class="celeb-desc">Ice queen precision</span>
+                    </label>
+                    <label class="celeb-card">
+                        <input type="radio" name="celebrity" value="drax">
+                        <span class="celeb-emoji">💪</span>
+                        <span class="celeb-name">Drax</span>
+                        <span class="celeb-desc">Painfully literal</span>
+                    </label>
+                </div>
+            </section>
+
+            <section>
+                <h2>Roast Intensity</h2>
+                <div class="slider-container">
+                    <span class="slider-label">😊 Gentle</span>
+                    <input type="range" id="intensity" name="intensity" min="1" max="10" value="5">
+                    <span class="slider-label">🔥 Savage</span>
+                </div>
+                <div id="intensity-display">
+                    Level <span id="intensity-value">5</span>/10 —
+                    <span id="intensity-text">Sharp but balanced</span>
+                </div>
+            </section>
+
+            <section>
+                <h2>Upload Your Resume (PDF only, max 5MB)</h2>
+                <div id="drop-zone">
+                    <p>📄 Drag & drop your PDF here, or click to browse</p>
+                    <input type="file" id="resume-file" name="resume" accept=".pdf" required>
+                </div>
+                <div id="file-name-display"></div>
+            </section>
+
+            <button type="submit" id="submit-btn">🔥 Roast My Resume!</button>
+
+        </form>
+    </div>
+
+
+    <!-- ===================== RESULTS PANEL ===================== -->
+    <div id="results-panel" style="display:none;">
+
+        <div id="results-header">
+            <h2 id="results-title">Generating your roast...</h2>
+            <button id="back-btn">← Roast Another Resume</button>
+        </div>
+
+        <div id="loading-indicator">
+            <div class="spinner"></div>
+            <p id="loading-text">Warming up the roast...</p>
+        </div>
+
+        <!-- ===================== AUDIO PLAYER =====================
+             Hidden until the roast finishes streaming.
+             ElevenLabs audio loads and plays automatically,
+             then the user can replay with the button.          -->
+        <div id="audio-player" style="display:none;">
+            <div id="audio-label">
+                <span id="audio-icon">🔊</span>
+                <span id="audio-status">Loading voice...</span>
+            </div>
+            <audio id="roast-audio" controls></audio>
+            <button id="replay-btn">↩ Replay Opening</button>
+        </div>
+
+        <div id="roast-output"></div>
+
+        <div id="export-buttons" style="display:none;">
+            <button id="copy-btn">📋 Copy to Clipboard</button>
+            <button id="download-btn">⬇️ Download as Text</button>
+        </div>
+
+    </div>
+
+
+    <script>
+    // ===================== SLIDER =====================
+    const slider = document.getElementById('intensity');
+    const intensityValue = document.getElementById('intensity-value');
+    const intensityText  = document.getElementById('intensity-text');
+
+    slider.addEventListener('input', function() {
+        const v = parseInt(this.value);
+        intensityValue.textContent = v;
+        if (v <= 3)      intensityText.textContent = 'Encouraging with gentle roasts';
+        else if (v <= 7) intensityText.textContent = 'Sharp but balanced';
+        else             intensityText.textContent = 'Absolutely savage 🔥';
+    });
+
+    // ===================== CELEBRITY CARDS =====================
+    document.querySelectorAll('.celeb-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.celeb-card').forEach(c => c.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // ===================== DRAG & DROP =====================
+    const dropZone       = document.getElementById('drop-zone');
+    const fileInput      = document.getElementById('resume-file');
+    const fileNameDisplay = document.getElementById('file-name-display');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            fileNameDisplay.textContent = '✅ ' + file.name;
+        } else {
+            fileNameDisplay.textContent = '❌ Please upload a PDF file';
+        }
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) fileNameDisplay.textContent = '✅ ' + fileInput.files[0].name;
+    });
+
+
+    // ===================== FORM SUBMIT =====================
+    const form            = document.getElementById('roast-form');
+    const setupPanel      = document.getElementById('setup-panel');
+    const resultsPanel    = document.getElementById('results-panel');
+    const roastOutput     = document.getElementById('roast-output');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const exportButtons   = document.getElementById('export-buttons');
+    const resultsTitle    = document.getElementById('results-title');
+    const audioPlayer     = document.getElementById('audio-player');
+    const roastAudio      = document.getElementById('roast-audio');
+    const audioStatus     = document.getElementById('audio-status');
+    const replayBtn       = document.getElementById('replay-btn');
+
+    const celebNames = {
+        gordon:'Gordon Ramsay', simon:'Simon Cowell', trump:'Donald Trump'
+    };
+
+    const loadingMessages = [
+        "Sharpening the knives...",
+        "Preheating the criticism...",
+        "Reading every embarrassing word...",
+        "Consulting the roast oracle...",
+        "Finding your most questionable choices...",
+    ];
+
+    let loadingInterval;
+    let currentCelebrity = 'gordon';
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!fileInput.files[0]) { alert('Please select a PDF file first!'); return; }
+
+        currentCelebrity = document.querySelector('input[name="celebrity"]:checked').value;
+
+        // Switch panels
+        setupPanel.style.display  = 'none';
+        resultsPanel.style.display = 'block';
+        roastOutput.innerHTML      = '';
+        exportButtons.style.display = 'none';
+        audioPlayer.style.display  = 'none';
+        loadingIndicator.style.display = 'block';
+        resultsTitle.textContent   = `${celebNames[currentCelebrity]} is reading your resume...`;
+
+        // Cycle loading messages
+        let msgIndex = 0;
+        const loadingText = document.getElementById('loading-text');
+        loadingInterval = setInterval(() => {
+            loadingText.textContent = loadingMessages[msgIndex % loadingMessages.length];
+            msgIndex++;
+        }, 2000);
+
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch('/analyze', { method: 'POST', body: formData });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Server error');
+            }
+
+            // ---- Read the streaming chunks ----
+            const reader  = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText  = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    try {
+                        const data = JSON.parse(line.slice(6));
+
+                        if (data.error) throw new Error(data.error);
+
+                        if (data.text) {
+                            fullText += data.text;
+                            roastOutput.innerHTML = markdownToHtml(fullText);
+                            roastOutput.scrollTop = roastOutput.scrollHeight;
+                        }
+
+                        if (data.done) {
+                            // Text is complete — update UI
+                            clearInterval(loadingInterval);
+                            loadingIndicator.style.display = 'none';
+                            resultsTitle.textContent = `${celebNames[currentCelebrity]}'s Verdict`;
+                            exportButtons.style.display  = 'flex';
+                            roastOutput.dataset.fullText = fullText;
+
+                            // Extract the Opening Roast section and send to ElevenLabs
+                            const openingText = extractOpeningRoast(fullText);
+                            if (openingText) {
+                                requestAudio(openingText, currentCelebrity);
+                            }
+                        }
+
+                    } catch (parseErr) { /* skip malformed chunks */ }
+                }
+            }
+
+        } catch (error) {
+            clearInterval(loadingInterval);
+            loadingIndicator.style.display = 'none';
+            roastOutput.innerHTML = `<div class="error-box">❌ Error: ${error.message}</div>`;
+        }
+    });
+
+
+    // ===================== EXTRACT OPENING ROAST =====================
+    // Pulls out just the "## Opening Roast" section from the full markdown.
+    // This is what gets sent to ElevenLabs so we're not reading 2000 words aloud.
+    function extractOpeningRoast(markdown) {
+        // Match text between "## Opening Roast" and the next "##" heading
+        const match = markdown.match(/##\s*Opening Roast\s*\n([\s\S]*?)(?=\n##|$)/i);
+        if (!match) return null;
+
+        // Strip any leftover markdown symbols so ElevenLabs gets clean speech text
+        return match[1]
+            .replace(/\*\*/g, '')   // remove bold markers
+            .replace(/\*/g, '')     // remove italic markers
+            .replace(/#+\s/g, '')   // remove heading hashes
+            .replace(/- /g, '')     // remove list dashes
+            .trim();
+    }
+
+
+    // ===================== REQUEST AUDIO FROM ELEVENLABS =====================
+    // Called once the text stream finishes. Sends the opening roast to /speak,
+    // gets back an MP3 blob, wires it to the <audio> element, and plays it.
+    async function requestAudio(text, celebrity) {
+        // Show the audio player in "loading" state
+        audioPlayer.style.display = 'flex';
+        audioStatus.textContent   = 'Generating voice...';
+        roastAudio.style.display  = 'none';
+        replayBtn.style.display   = 'none';
+
+        try {
+            const response = await fetch('/speak', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, celebrity })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Audio generation failed');
+            }
+
+            // Turn the response into a local blob URL the <audio> tag can play
+            const audioBlob = await response.blob();
+            const audioUrl  = URL.createObjectURL(audioBlob);
+
+            roastAudio.src = audioUrl;
+            roastAudio.style.display = 'block';
+            replayBtn.style.display  = 'inline-block';
+            audioStatus.textContent  = '🎙 Opening roast — voiced by ElevenLabs';
+
+            // Autoplay (browsers allow this when triggered by a user gesture,
+            // which the form submit counts as)
+            roastAudio.play().catch(() => {
+                // Some browsers still block autoplay — the controls are visible
+                // so the user can just press play manually
+                audioStatus.textContent = '▶ Press play to hear the roast';
+            });
+
+        } catch (err) {
+            audioStatus.textContent = `⚠ Voice unavailable: ${err.message}`;
+        }
+    }
+
+    // Replay button just rewinds and plays the same audio blob
+    replayBtn.addEventListener('click', () => {
+        roastAudio.currentTime = 0;
+        roastAudio.play();
+    });
+
+
+    // ===================== MARKDOWN → HTML =====================
+    function markdownToHtml(text) {
+        return text
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/(<li>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
+            .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+            .replace(/\n\n/g, '</p><p>');
+    }
+
+
+    // ===================== BACK BUTTON =====================
+    document.getElementById('back-btn').addEventListener('click', () => {
+        clearInterval(loadingInterval);
+        // Stop any playing audio and release the blob URL
+        roastAudio.pause();
+        if (roastAudio.src) URL.revokeObjectURL(roastAudio.src);
+        resultsPanel.style.display = 'none';
+        setupPanel.style.display   = 'block';
+        roastOutput.innerHTML      = '';
+    });
+
+
+    // ===================== COPY & DOWNLOAD =====================
+    document.getElementById('copy-btn').addEventListener('click', () => {
+        const text = roastOutput.dataset.fullText || roastOutput.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            document.getElementById('copy-btn').textContent = '✅ Copied!';
+            setTimeout(() => document.getElementById('copy-btn').textContent = '📋 Copy to Clipboard', 2000);
+        });
+    });
+
+    document.getElementById('download-btn').addEventListener('click', () => {
+        const text = roastOutput.dataset.fullText || roastOutput.innerText;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url; a.download = 'my_resume_roast.txt'; a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    </script>
+</body>
+</html>

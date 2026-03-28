@@ -1,0 +1,40 @@
+/* ===================== AUDIO PLAYER ===================== */
+#audio-player {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #1a1a1a;
+    border: 1px solid #ff6b35;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+#audio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #ffa07a;
+    font-weight: 600;
+}
+
+#roast-audio {
+    width: 100%;
+    accent-color: #ff6b35;
+    border-radius: 8px;
+}
+
+#replay-btn {
+    align-self: flex-start;
+    padding: 7px 16px;
+    background: #252525;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+}
+
+#replay-btn:hover { background: #333; }
