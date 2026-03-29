@@ -41,7 +41,8 @@ Frontend — HTML / CSS / Vanilla JavaScript
 **AI Models Used**
 
  Gemini 2.5 Flash Lite | Resume analysis, structured roast generation, scoring |
- ElevenLabs Multilingual v2 | Celebrity-styled voice synthesis for audio playback |
+ ElevenLabs Multilingual v2 | Celebrity-styled voice synthesis for audio playback | 
+ Gemini & Claude were used for debbuging and explanation purposes.
 
 ---
 
