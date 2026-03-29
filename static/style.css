@@ -1,4 +1,4 @@
-/* ===================== GLOBAL STYLES ===================== */
+/* GLOBAL STYLES  */
 :root {
     --bg-dark: #0d0d0d;
     --card-bg: #1a1a1a;
@@ -45,7 +45,7 @@ header p {
     margin-bottom: 40px;
 }
 
-/* ===================== CELEBRITY GRID ===================== */
+/* CELEBRITY GRID */
 .celebrity-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -82,7 +82,7 @@ header p {
     box-shadow: 0 0 20px var(--accent-glow);
 }
 
-/* ===================== DROP ZONE ===================== */
+/* DROP ZONE */
 #drop-zone {
     border: 2px dashed #444;
     background: var(--glass);
@@ -109,7 +109,7 @@ header p {
     color: var(--accent);
 }
 
-/* ===================== INTENSITY SLIDER ===================== */
+/* INTENSITY SLIDER */
 .slider-container {
     display: flex;
     align-items: center;
@@ -134,7 +134,7 @@ header p {
 
 #intensity-value { color: var(--accent); font-weight: bold; }
 
-/* ===================== SCORE DASHBOARD (New Bento Layout) ===================== */
+/* SCORE DASHBOARD */
 .score-dashboard {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -187,7 +187,7 @@ header p {
     text-shadow: 0 0 10px var(--accent-glow);
 }
 
-/* ===================== BUTTONS ===================== */
+/* BUTTONS */ 
 #submit-btn, #back-btn {
     padding: 15px 25px;
     border: none;
@@ -218,7 +218,7 @@ header p {
 
 #back-btn:hover { background: #444; }
 
-/* ===================== AUDIO PLAYER ===================== */
+/* AUDIO PLAYER */
 #audio-player {
     display: flex;
     flex-direction: column;
@@ -244,7 +244,7 @@ header p {
     align-self: flex-start;
 }
 
-/* ===================== ROAST OUTPUT & SUMMARY CARD ===================== */
+/* ROAST OUTPUT */
 #roast-output {
     min-height: 200px;
 }

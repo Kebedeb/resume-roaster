@@ -3,27 +3,24 @@ import io
 import json
 from flask import Flask, render_template, request, Response, stream_with_context, send_file
 import fitz  # pymupdf
-# FIX 1: Updated the import to use the new Google GenAI SDK
 from google import genai 
 from google.genai import types
 from elevenlabs.client import ElevenLabs
 from elevenlabs import VoiceSettings
+from dotenv import load_dotenv
+load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-# --- CONFIG ---
-# Bhai, keep these keys in an .env file for the final demo!
-GEMINI_API_KEY = "AIzaSyCkwDe7x-vH83R520ui8aocVa7csc8hbyY"
-ELEVENLABS_API_KEY = "sk_e6511de4358c1ae5d520f12455ec752ed3929924e858c21c"
-
-# Stable Voice IDs
+#Voice IDs
 CELEBRITY_VOICES = { 
-    "gordon": "onwK4e9ZLuTAKqWW03F9", # Daniel (Commanding)
-    "simon":  "ErXwobaYiN019PkySvjV", # Antoni (Cold)
-    "trump":  "pNInz6obpgDQGcFmaJgB", # Adam (Authoritative)
+    "gordon": "onwK4e9ZLuTAKqWW03F9", 
+    "simon":  "ErXwobaYiN019PkySvjV", 
+    "trump":  "pNInz6obpgDQGcFmaJgB", 
 }
 
-# FIX 2: Initialize the NEW Client instead of using genai.configure
 client = genai.Client(api_key=GEMINI_API_KEY)
-# We define the model as a string now
 MODEL_NAME = "gemini-2.5-flash-lite" 
 
 app = Flask(__name__)
@@ -85,19 +82,16 @@ def analyze():
     def generate():
         try:
             print(f"--- Starting Gemini Stream for {celebrity_key} ---")
-            
-            # Use the most stable streaming syntax for the new SDK
             response = client.models.generate_content_stream(
                 model=MODEL_NAME,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.7  # You can put other settings here, but NOT 'stream'
+                    temperature=0.7  
                 )
             )
 
             for chunk in response:
                 if chunk.text:
-                    # Print to terminal so you know it's working!
                     print(f"Chunk received: {chunk.text[:20]}...") 
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
 
@@ -133,14 +127,12 @@ def speak():
     if not text:
         return {'error': 'No text provided'}, 400
 
-    # Ensure these IDs are the stable ones
     voice_id = CELEBRITY_VOICES.get(celebrity_key, "onwK4e9ZLuTAKqWW03F9") 
 
     try:
         print(f"--- Voice Request for {celebrity_key} ---")
         el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-        # FIX: The new SDK uses .text_to_speech.convert
         audio_generator = el_client.text_to_speech.convert(
             voice_id=voice_id,
             text=text,
@@ -153,7 +145,6 @@ def speak():
             )
         )
         
-        # Combine the generator chunks into one byte string
         audio_bytes = b"".join(audio_generator)
         
         return send_file(
@@ -175,5 +166,4 @@ def speak():
 #     return {'status': 'Audio logic placeholder'}
 
 if __name__ == '__main__':
-    # Running on port 8000 as you requested
     app.run(debug=True, port=8000)

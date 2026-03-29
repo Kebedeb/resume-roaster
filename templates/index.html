@@ -190,7 +190,6 @@
 
     <script>
 
-    // --- UI HELPERS ---
 
     const slider = document.getElementById('intensity');
 
@@ -225,9 +224,6 @@
     });
 
 
-
-    // --- FILE UPLOAD ---
-
     const dropZone = document.getElementById('drop-zone');
 
     const fileInput = document.getElementById('resume-file');
@@ -244,9 +240,6 @@
 
     });
 
-
-
-    // --- CORE LOGIC ---
 
     const form = document.getElementById('roast-form');
 
@@ -401,9 +394,6 @@
     });
 
 
-
-    // DASHBOARD RENDERER
-
     function renderDashboard(text) {
 
         const getVal = (label) => {
@@ -492,17 +482,12 @@
 
     function markdownToHtml(text) {
         return text
-            // Headers first
+            
             .replace(/^## (.+)$/gm, '<h2>$1</h2>')
             .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-            // Bullets BEFORE bold so the structure is detected correctly
-            // handles both - and * as bullet prefix
             .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
-            // Now apply bold inside the already-converted lines
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            // Wrap all consecutive <li> blocks in <ul>
             .replace(/(<li>[\s\S]*?<\/li>\n?)+/gs, (match) => `<ul>${match}</ul>`)
-            // Paragraphs
             .replace(/\n\n/g, '</p><p>');
     }
 
@@ -510,7 +495,7 @@
 
     document.getElementById('back-btn').addEventListener('click', () => {
 
-        location.reload(); // Simplest way to reset the full state
+        location.reload(); 
 
     });
 
