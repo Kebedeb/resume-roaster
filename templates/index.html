@@ -491,21 +491,19 @@
 
 
     function markdownToHtml(text) {
-
         return text
-
+            // Headers first
             .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-
             .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-
+            // Bullets BEFORE bold so the structure is detected correctly
+            // handles both - and * as bullet prefix
+            .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+            // Now apply bold inside the already-converted lines
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-
-            .replace(/^- (.+)$/gm, '<li>$1</li>')
-
-            .replace(/(<li>[\s\S]*?<\/li>\n?)+/g, '<ul>$&</ul>')
-
+            // Wrap all consecutive <li> blocks in <ul>
+            .replace(/(<li>[\s\S]*?<\/li>\n?)+/gs, (match) => `<ul>${match}</ul>`)
+            // Paragraphs
             .replace(/\n\n/g, '</p><p>');
-
     }
 
 

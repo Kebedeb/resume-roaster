@@ -11,8 +11,8 @@ from elevenlabs import VoiceSettings
 
 # --- CONFIG ---
 # Bhai, keep these keys in an .env file for the final demo!
-GEMINI_API_KEY = "AIzaSyBd6Vyh0p4Lni443d9JX88GvUopMzMj2GQ"
-ELEVENLABS_API_KEY = "sk_6247415fd547932d2529496c8f0b01aee442fdbe81f7b9b7"
+GEMINI_API_KEY = "AIzaSyCkwDe7x-vH83R520ui8aocVa7csc8hbyY"
+ELEVENLABS_API_KEY = "sk_e6511de4358c1ae5d520f12455ec752ed3929924e858c21c"
 
 # Stable Voice IDs
 CELEBRITY_VOICES = { 
