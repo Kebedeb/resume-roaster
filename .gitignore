@@ -1,1 +1,21 @@
-/venv
+/venv# API Keys and Secrets
+.env
+
+# Python Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+
+# Python Cache and Compiled Files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# IDE Specific (Optional but recommended)
+.vscode/
+.idea/
