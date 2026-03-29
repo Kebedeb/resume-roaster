@@ -155,3 +155,8 @@ http://localhost:8000
 
 Rayyan Madraswala - Chief logistics officer of career despair
 Biruk Kebede - Chief emotional damage architect  
+
+Video Demos
+Roasted by Trump : https://youtu.be/2kPy0wlzSSI 
+Roasted by Gordon:  https://youtu.be/Fz4nLlm4NlM
+
