@@ -1,208 +1,129 @@
 import os
 import io
 import json
-import re
 from flask import Flask, render_template, request, Response, stream_with_context, send_file
 import fitz  # pymupdf
-import google.generativeai as genai
+# FIX 1: Updated the import to use the new Google GenAI SDK
+from google import genai 
+from google.genai import types
 from elevenlabs.client import ElevenLabs
 from elevenlabs import VoiceSettings
 
-# ---------------------------------------------------------
-# PASTE YOUR KEYS HERE
-# Get Gemini key at: https://aistudio.google.com/app/apikey
-# Get ElevenLabs key at: https://elevenlabs.io (Profile > API Key)
-# ---------------------------------------------------------
-GEMINI_API_KEY    = "AIzaSyAvM9KB6b-XReBgW1qdjGNvwDpv-zWIfx4"
+# --- CONFIG ---
+# Bhai, keep these keys in an .env file for the final demo!
+GEMINI_API_KEY = "AIzaSyBd6Vyh0p4Lni443d9JX88GvUopMzMj2GQ"
 ELEVENLABS_API_KEY = "sk_6247415fd547932d2529496c8f0b01aee442fdbe81f7b9b7"
 
-# ---------------------------------------------------------
-# ELEVENLABS VOICE IDs
-# Each celebrity maps to an ElevenLabs voice that fits their vibe.
-# You can find more voices at: https://elevenlabs.io/voice-library
-# These are stable built-in voices that don't require cloning.
-# ---------------------------------------------------------
+# Stable Voice IDs
 CELEBRITY_VOICES = { 
-    "gordon":   "onwK4e9ZLuTAKqWW03F9",  # Adam  — commanding, British-ish
-    "simon":    "ErXwobaYiN019PkySvjV",  # Antoni — measured, slightly cold
-    "trump":    "pNInz6obpgDQGcFmaJgB",  # Domi   — flat, deliberate (Trump's voice is hard to clone, so we go for a deadpan style that fits the vibe)
-    # "trump":    "AZnzlk1XvdvUeBnXmlld",  # Domi   — flat, deliberate (Trump's voice is hard to clone, so we go for a deadpan style that fits the vibe)
-#     "deadpool": "VR6AewLTigWG4xSOukaG",  # Arnold — charismatic, punchy
-#     "snoop":    "onwK4e9ZLuTAKqWW03F9",  # Daniel — deep, smooth
-#     "anna":     "21m00Tcm4TlvDq8ikWAM",  # Rachel — crisp, authoritative
-#     "drax":     "AZnzlk1XvdvUeBnXmlld",  # Domi   — flat, deliberate
+    "gordon": "onwK4e9ZLuTAKqWW03F9", # Daniel (Commanding)
+    "simon":  "ErXwobaYiN019PkySvjV", # Antoni (Cold)
+    "trump":  "pNInz6obpgDQGcFmaJgB", # Adam (Authoritative)
 }
 
-# ---------------------------------------------------------
-# CONFIGURE GEMINI
-# ---------------------------------------------------------
-genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-2.5-flash-lite")
+# FIX 2: Initialize the NEW Client instead of using genai.configure
+client = genai.Client(api_key=GEMINI_API_KEY)
+# We define the model as a string now
+MODEL_NAME = "gemini-2.5-flash-lite" 
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max
 
-# ---------------------------------------------------------
-# CELEBRITY PROMPTS
-# ---------------------------------------------------------
 CELEBRITY_PROMPTS = {
     "gordon": {
         "name": "Gordon Ramsay",
-        "description": """You are Gordon Ramsay reviewing this resume like it's a dish in Hell's Kitchen.
-        Use cooking metaphors. Use ALL CAPS for emphasis occasionally. Say things like 
-        "This resume is RAWWWW!", use British expressions. Be brutally honest but always 
-        explain HOW to fix each problem. You are passionate and genuinely want them to succeed."""
+        "description": "You are Gordon Ramsay. Use cooking metaphors. Brutally honest, high energy, British slang. 'This resume is RAWWWW!'"
     },
     "simon": {
         "name": "Simon Cowell",
-        "description": """You are Simon Cowell from American Idol judging this resume like an audition.
-        Use music industry analogies. Be condescending but specific. Use phrases like 
-        "It's a no from me" and "I've seen better formatting on a ransom note". 
-        Be blunt and dismissive of weak parts, but always give a clear path to improvement."""
+        "description": "You are Simon Cowell. Music industry analogies. Blunt, dismissive, 'It's a no from me'."
     },
     "trump": {
         "name": "Donald Trump",
-        "description": """You are Donald Trump reviewing this resume like it's a business proposal.
-        Use business jargon and self-aggrandizing language. Brag about how great your own resume is. 
-        Use phrases like "This is a disaster, believe me" and "I've seen resumes, and this isn't one of the best". 
-        Be harsh but also throw in some bizarre, over-the-top compliments to keep them guessing."""
-    },
+        "description": "You are Donald Trump. Business jargon, self-aggrandizing, 'This is a disaster, believe me'."
+    }
 }
 
-# ---------------------------------------------------------
-# INTENSITY HELPER
-# ---------------------------------------------------------
-def get_intensity_description(level):
-    level = int(level)
-    if level <= 3:
-        return "Be encouraging and gentle. Point out issues kindly. Use humor lightly. Focus more on what's good."
-    elif level <= 7:
-        return "Be sharp and direct. Balance criticism with encouragement. Don't sugarcoat problems but stay constructive."
-    else:
-        return "Be absolutely savage. Hold nothing back. Maximum roast energy. But every criticism MUST include a specific fix."
-
-
-# ---------------------------------------------------------
-# ROUTE: Home page
-# ---------------------------------------------------------
 @app.route('/')
 def index():
     return render_template('index.html')
 
-
-# ---------------------------------------------------------
-# ROUTE: Analyze resume (streams the roast text via Gemini)
-# ---------------------------------------------------------
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    if 'resume' not in request.files:
-        return {'error': 'No file uploaded'}, 400
-
-    file = request.files['resume']
+    file = request.files.get('resume')
     celebrity_key = request.form.get('celebrity', 'gordon')
     intensity = request.form.get('intensity', '5')
 
-    if celebrity_key not in CELEBRITY_PROMPTS:
-        return {'error': 'Invalid celebrity'}, 400
+    if not file: return {'error': 'No file'}, 400
 
-    # --- Extract text from PDF ---
-    try:
-        pdf_bytes = file.read()
-        pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
-        resume_text = ""
-        for page in pdf_document:
-            resume_text += page.get_text()
-        pdf_document.close()
-    except Exception as e:
-        return {'error': f'Could not read PDF: {str(e)}'}, 400
+    pdf_bytes = file.read()
+    pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+    resume_text = "".join([page.get_text() for page in pdf_document])[:6000]
+    pdf_document.close()
 
-    if not resume_text.strip():
-        return {'error': 'Could not extract text. Make sure the PDF is not a scanned image.'}, 400
-
-    resume_text = resume_text[:8000]  # cap to keep costs low
-
-    # --- Build prompt ---
-    celebrity = CELEBRITY_PROMPTS[celebrity_key]
-    intensity_desc = get_intensity_description(intensity)
-
+    celebrity = CELEBRITY_PROMPTS.get(celebrity_key, CELEBRITY_PROMPTS['gordon'])
+    
     prompt = f"""
-{celebrity['description']}
+    {celebrity['description']}
+    Intensity: {intensity}/10.
+    Resume: {resume_text}
 
-Intensity level: {intensity}/10. {intensity_desc}
+    Format your response EXACTLY like this:
+    [SCORES]
+    ATS: X/10
+    Grammar: X/10
+    Impact: X/10
+    Style: X/10
+    Overall: X/10
+    [/SCORES]
 
-Here is the resume you are reviewing:
----
-{resume_text}
----
+    ## Opening Roast
+    (2 paragraphs of spoken dialogue for the audio)
 
-Provide your review in this exact structure using markdown:
-
-## Opening Roast
-(2-3 paragraphs of your celebrity-voiced overall impression. 
-This section will be read aloud, so write it as natural spoken dialogue — 
-no bullet points here, just flowing sentences the way you would actually talk.)
-
-## Section-by-Section Breakdown
-For each resume section found (Summary, Experience, Education, Skills, etc.):
-
-### [Section Name]
-**The Roast:** (in-character critique)
-**What's Wrong:** (bullet points of specific issues)
-**How to Fix It:** (concrete, actionable suggestions)
-**Rewrite Example:** (an improved version of one bullet point or sentence)
-
-## Score Card
-Rate each 1-10 with a one-sentence celebrity-voiced reaction:
-- **Content Quality:** X/10 — (reaction)
-- **Formatting & Layout:** X/10 — (reaction)
-- **Impact & Achievements:** X/10 — (reaction)
-- **Grammar & Writing:** X/10 — (reaction)
-- **ATS Compatibility:** X/10 — (reaction)
-- **Overall Grade:** X/10 — (final verdict in character)
-
-## Top 5 Action Items
-Number 1-5, most important first. Label each [Quick Win] or [Major Revision].
-One specific sentence per item.
-"""
-
-    # ---------------------------------------------------------
-    # STREAM GEMINI RESPONSE
-    # Gemini supports streaming just like Anthropic did.
-    # We send each chunk as a Server-Sent Event to the browser.
-    # ---------------------------------------------------------
+    ## The Fix-It List
+    (3-5 concise bullet points of major issues)
+    """
     def generate():
         try:
-            response = gemini_model.generate_content(prompt, stream=True)
+            print(f"--- Starting Gemini Stream for {celebrity_key} ---")
+            
+            # Use the most stable streaming syntax for the new SDK
+            response = client.models.generate_content_stream(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7  # You can put other settings here, but NOT 'stream'
+                )
+            )
+
             for chunk in response:
-                # chunk.text might be None if the chunk is metadata only
                 if chunk.text:
+                    # Print to terminal so you know it's working!
+                    print(f"Chunk received: {chunk.text[:20]}...") 
                     yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+
+            print("--- Stream Complete ---")
             yield f"data: {json.dumps({'done': True})}\n\n"
 
         except Exception as e:
-            error_msg = str(e)
-            if "API_KEY" in error_msg.upper() or "credential" in error_msg.lower():
-                yield f"data: {json.dumps({'error': 'Invalid Gemini API key. Check GEMINI_API_KEY in app.py.'})}\n\n"
-            else:
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+            print(f"!!! BACKEND ERROR: {str(e)}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    # def generate():
+    #     try:
+    #         # FIX 3: Updated streaming syntax for the new google-genai SDK
+    #         response = client.models.generate_content(
+    #             model=MODEL_NAME,
+    #             contents=prompt,
+    #             config={'stream': True}
+    #         )
+    #         for chunk in response:
+    #             if chunk.text: 
+    #                 yield f"data: {json.dumps({'text': chunk.text})}\n\n"
+    #         yield f"data: {json.dumps({'done': True})}\n\n"
+    #     except Exception as e:
+    #         yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'X-Accel-Buffering': 'no'
-        }
-    )
+    return Response(stream_with_context(generate()), mimetype='text/event-stream')
 
-
-# ---------------------------------------------------------
-# ROUTE: Generate audio via ElevenLabs
-#
-# The browser sends the opening roast text + celebrity key.
-# We pick the matching ElevenLabs voice and return an MP3.
-# The browser then plays it automatically.
-# ---------------------------------------------------------
 @app.route('/speak', methods=['POST'])
 def speak():
     data = request.get_json()
@@ -212,43 +133,47 @@ def speak():
     if not text:
         return {'error': 'No text provided'}, 400
 
-    # Trim to ~600 chars so we don't burn through ElevenLabs quota.
-    # The opening roast is typically 300-500 chars — this is a safety cap.
-    text = text[:600]
-
-    voice_id = CELEBRITY_VOICES.get(celebrity_key, CELEBRITY_VOICES['gordon'])
+    # Ensure these IDs are the stable ones
+    voice_id = CELEBRITY_VOICES.get(celebrity_key, "onwK4e9ZLuTAKqWW03F9") 
 
     try:
+        print(f"--- Voice Request for {celebrity_key} ---")
         el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-        # generate() returns a generator of audio bytes
+        # FIX: The new SDK uses .text_to_speech.convert
         audio_generator = el_client.text_to_speech.convert(
             voice_id=voice_id,
             text=text,
             model_id="eleven_multilingual_v2",
             voice_settings=VoiceSettings(
-                stability=0.45,        # lower = more expressive/emotional
-                similarity_boost=0.80, # how closely to match the voice
-                style=0.35,            # style exaggeration (0 = neutral)
+                stability=0.5,
+                similarity_boost=0.8,
+                style=0.0,
                 use_speaker_boost=True
             )
         )
-
-        # Collect all audio bytes into one buffer
+        
+        # Combine the generator chunks into one byte string
         audio_bytes = b"".join(audio_generator)
-        audio_buffer = io.BytesIO(audio_bytes)
-        audio_buffer.seek(0)
-
+        
         return send_file(
-            audio_buffer,
+            io.BytesIO(audio_bytes),
             mimetype='audio/mpeg',
-            as_attachment=False,
-            download_name='roast_audio.mp3'
+            as_attachment=False
         )
 
     except Exception as e:
-        return {'error': f'ElevenLabs error: {str(e)}'}, 500
-
+        print(f"!!! ELEVENLABS ERROR: {str(e)}")
+        return {'error': str(e)}, 500
+# @app.route('/speak', methods=['POST'])
+# def speak():
+#     data = request.get_json()
+#     voice_id = CELEBRITY_VOICES.get(data.get('celebrity'), CELEBRITY_VOICES['gordon'])
+#     el_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+    
+#     # ... your existing ElevenLabs logic ...
+#     return {'status': 'Audio logic placeholder'}
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Running on port 8000 as you requested
+    app.run(debug=True, port=8000)
