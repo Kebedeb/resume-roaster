@@ -13,7 +13,7 @@ from elevenlabs import VoiceSettings
 # Get Gemini key at: https://aistudio.google.com/app/apikey
 # Get ElevenLabs key at: https://elevenlabs.io (Profile > API Key)
 # ---------------------------------------------------------
-GEMINI_API_KEY    = "AIzaSyDH9dv-XliY6btncvFgo6ICCgI6PWBX5nY"
+GEMINI_API_KEY    = "AIzaSyAvM9KB6b-XReBgW1qdjGNvwDpv-zWIfx4"
 ELEVENLABS_API_KEY = "sk_6247415fd547932d2529496c8f0b01aee442fdbe81f7b9b7"
 
 # ---------------------------------------------------------
@@ -22,10 +22,11 @@ ELEVENLABS_API_KEY = "sk_6247415fd547932d2529496c8f0b01aee442fdbe81f7b9b7"
 # You can find more voices at: https://elevenlabs.io/voice-library
 # These are stable built-in voices that don't require cloning.
 # ---------------------------------------------------------
-CELEBRITY_VOICES = {
-    "gordon":   "pNInz6obpgDQGcFmaJgB",  # Adam  — commanding, British-ish
+CELEBRITY_VOICES = { 
+    "gordon":   "onwK4e9ZLuTAKqWW03F9",  # Adam  — commanding, British-ish
     "simon":    "ErXwobaYiN019PkySvjV",  # Antoni — measured, slightly cold
-    "trump":    "AZnzlk1XvdvUeBnXmlld",  # Domi   — flat, deliberate (Trump's voice is hard to clone, so we go for a deadpan style that fits the vibe)
+    "trump":    "pNInz6obpgDQGcFmaJgB",  # Domi   — flat, deliberate (Trump's voice is hard to clone, so we go for a deadpan style that fits the vibe)
+    # "trump":    "AZnzlk1XvdvUeBnXmlld",  # Domi   — flat, deliberate (Trump's voice is hard to clone, so we go for a deadpan style that fits the vibe)
 #     "deadpool": "VR6AewLTigWG4xSOukaG",  # Arnold — charismatic, punchy
 #     "snoop":    "onwK4e9ZLuTAKqWW03F9",  # Daniel — deep, smooth
 #     "anna":     "21m00Tcm4TlvDq8ikWAM",  # Rachel — crisp, authoritative
@@ -36,7 +37,7 @@ CELEBRITY_VOICES = {
 # CONFIGURE GEMINI
 # ---------------------------------------------------------
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+gemini_model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB max

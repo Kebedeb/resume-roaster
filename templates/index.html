@@ -33,12 +33,12 @@
                         <span class="celeb-desc">Blunt talent judge</span>
                     </label>
                     <label class="celeb-card">
-                        <input type="radio" name="celebrity" value="deadpool">
+                        <input type="radio" name="celebrity" value="trump">
                         <span class="celeb-emoji">🗡️</span>
-                        <span class="celeb-name">Deadpool</span>
+                        <span class="celeb-name">Trump</span>
                         <span class="celeb-desc">Fourth-wall breaker</span>
                     </label>
-                    <label class="celeb-card">
+                    <!-- <label class="celeb-card">
                         <input type="radio" name="celebrity" value="snoop">
                         <span class="celeb-emoji">🎵</span>
                         <span class="celeb-name">Snoop Dogg</span>
@@ -55,7 +55,7 @@
                         <span class="celeb-emoji">💪</span>
                         <span class="celeb-name">Drax</span>
                         <span class="celeb-desc">Painfully literal</span>
-                    </label>
+                    </label> -->
                 </div>
             </section>
 
@@ -288,25 +288,38 @@
     // Pulls out just the "## Opening Roast" section from the full markdown.
     // This is what gets sent to ElevenLabs so we're not reading 2000 words aloud.
     function extractOpeningRoast(markdown) {
-        // Match text between "## Opening Roast" and the next "##" heading
-        const match = markdown.match(/##\s*Opening Roast\s*\n([\s\S]*?)(?=\n##|$)/i);
-        if (!match) return null;
+    // Looks for "Opening Roast" regardless of how many # it has
+    const match = markdown.match(/#+\s*Opening Roast\s*[\n\r]+([\s\S]*?)(?=\n#+|$)/i);
+    
+    // Fallback: If "Opening Roast" header isn't found, grab the first 300 characters
+    let rawText = match ? match[1] : markdown.substring(0, 300);
 
-        // Strip any leftover markdown symbols so ElevenLabs gets clean speech text
-        return match[1]
-            .replace(/\*\*/g, '')   // remove bold markers
-            .replace(/\*/g, '')     // remove italic markers
-            .replace(/#+\s/g, '')   // remove heading hashes
-            .replace(/- /g, '')     // remove list dashes
-            .trim();
-    }
+    return rawText
+        .replace(/\*\*/g, '')   
+        .replace(/\*/g, '')     
+        .replace(/#+\s/g, '')   
+        .replace(/- /g, '')     
+        .trim();
+}
+    // function extractOpeningRoast(markdown) {
+    //     // Match text between "## Opening Roast" and the next "##" heading
+    //     const match = markdown.match(/##\s*Opening Roast\s*\n([\s\S]*?)(?=\n##|$)/i);
+    //     if (!match) return null;
+
+    //     // Strip any leftover markdown symbols so ElevenLabs gets clean speech text
+    //     return match[1]
+    //         .replace(/\*\*/g, '')   // remove bold markers
+    //         .replace(/\*/g, '')     // remove italic markers
+    //         .replace(/#+\s/g, '')   // remove heading hashes
+    //         .replace(/- /g, '')     // remove list dashes
+    //         .trim();
+    // }
 
 
     // ===================== REQUEST AUDIO FROM ELEVENLABS =====================
     // Called once the text stream finishes. Sends the opening roast to /speak,
     // gets back an MP3 blob, wires it to the <audio> element, and plays it.
     async function requestAudio(text, celebrity) {
-        // Show the audio player in "loading" state
         audioPlayer.style.display = 'flex';
         audioStatus.textContent   = 'Generating voice...';
         roastAudio.style.display  = 'none';
@@ -319,32 +332,75 @@
                 body: JSON.stringify({ text, celebrity })
             });
 
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Audio generation failed');
-            }
+            if (!response.ok) throw new Error('Voice server busy');
 
-            // Turn the response into a local blob URL the <audio> tag can play
             const audioBlob = await response.blob();
-            const audioUrl  = URL.createObjectURL(audioBlob);
-
+            
+            // Revoke old URL if it exists to save memory
+            if (roastAudio.src) URL.revokeObjectURL(roastAudio.src);
+            
+            const audioUrl = URL.createObjectURL(audioBlob);
             roastAudio.src = audioUrl;
             roastAudio.style.display = 'block';
             replayBtn.style.display  = 'inline-block';
-            audioStatus.textContent  = '🎙 Opening roast — voiced by ElevenLabs';
 
-            // Autoplay (browsers allow this when triggered by a user gesture,
-            // which the form submit counts as)
-            roastAudio.play().catch(() => {
-                // Some browsers still block autoplay — the controls are visible
-                // so the user can just press play manually
-                audioStatus.textContent = '▶ Press play to hear the roast';
-            });
+            // Attempt Playback
+            const playPromise = roastAudio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    audioStatus.textContent = '🎙 the roast ';
+                }).catch(error => {
+                    console.log("Autoplay blocked:", error);
+                    audioStatus.textContent = '▶ Click play to hear the roast';
+                });
+            }
 
         } catch (err) {
-            audioStatus.textContent = `⚠ Voice unavailable: ${err.message}`;
+            console.error("Audio Error:", err);
+            audioStatus.textContent = `⚠ Voice unavailable`;
         }
     }
+    // async function requestAudio(text, celebrity) {
+    //     // Show the audio player in "loading" state
+    //     audioPlayer.style.display = 'flex';
+    //     audioStatus.textContent   = 'Generating voice...';
+    //     roastAudio.style.display  = 'none';
+    //     replayBtn.style.display   = 'none';
+
+    //     try {
+    //         const response = await fetch('/speak', {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ text, celebrity })
+    //         });
+
+    //         if (!response.ok) {
+    //             const err = await response.json();
+    //             throw new Error(err.error || 'Audio generation failed');
+    //         }
+
+    //         // Turn the response into a local blob URL the <audio> tag can play
+    //         const audioBlob = await response.blob();
+    //         const audioUrl  = URL.createObjectURL(audioBlob);
+
+    //         roastAudio.src = audioUrl;
+    //         roastAudio.style.display = 'block';
+    //         replayBtn.style.display  = 'inline-block';
+    //         audioStatus.textContent  = '🎙 Opening roast — voiced by ElevenLabs';
+
+    //         // Autoplay (browsers allow this when triggered by a user gesture,
+    //         // which the form submit counts as)
+    //         roastAudio.play().catch(() => {
+    //             // Some browsers still block autoplay — the controls are visible
+    //             // so the user can just press play manually
+    //             audioStatus.textContent = '▶ Press play to hear the roast';
+    //         });
+
+    //     } catch (err) {
+    //         audioStatus.textContent = `⚠ Voice unavailable: ${err.message}`;
+    //     }
+    // }
 
     // Replay button just rewinds and plays the same audio blob
     replayBtn.addEventListener('click', () => {
